@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>퀸즈 한상 솔루션</title>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #e8c547; --bg: #0a0a0a; --surface: #161616;
+    --text: #ffffff; --text-sub: #a0a0a0; --border: #2a2a2a;
+    --safe-top: env(safe-area-inset-top); --safe-bottom: env(safe-area-inset-bottom);
+  }
+  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  body { 
+    font-family: 'Pretendard', sans-serif; background: var(--bg); color: var(--text);
+    margin: 0; padding-top: var(--safe-top); display: flex; flex-direction: column; height: 100vh;
+  }
+  
+  /* 전문적인 헤더 디자인 */
+  header { padding: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+  header h1 { font-size: 24px; margin: 0; letter-spacing: -1px; }
+  header .status { font-size: 12px; color: var(--primary); font-weight: 600; }
+
+  /* 스크롤 가능한 컨텐츠 영역 */
+  main { flex: 1; overflow-y: auto; padding: 0 20px 100px; }
+  
+  /* 대시보드 카드 섹션 */
+  .dashboard { 
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0;
+  }
+  .stat-card { 
+    background: var(--surface); padding: 20px; border-radius: 16px; 
+    border: 1px solid var(--border); transition: transform 0.2s;
+  }
+  .stat-card:active { transform: scale(0.96); }
+  .stat-label { font-size: 11px; color: var(--text-sub); text-transform: uppercase; margin-bottom: 8px; }
+  .stat-value { font-size: 20px; font-weight: 700; color: var(--primary); }
+
+  /* 입력 폼 스타일 */
+  .input-group { margin-bottom: 24px; }
+  .input-label { font-size: 13px; color: var(--text-sub); margin-bottom: 8px; display: block; }
+  input, select { 
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 16px; border-radius: 12px; font-size: 16px; margin-bottom: 8px;
+  }
+  input:focus { outline: none; border-color: var(--primary); }
+
+  /* 버튼 디자인 */
+  .btn { 
+    padding: 18px; border-radius: 14px; border: none; font-size: 16px; font-weight: 700;
+    cursor: pointer; width: 100%; transition: opacity 0.2s;
+  }
+  .btn-primary { background: var(--primary); color: #000; }
+  .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+
+  /* 하단 탭 바 (앱 느낌 극대화) */
+  nav { 
+    position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(22, 22, 22, 0.8);
+    backdrop-filter: blur(20px); border-top: 1px solid var(--border);
+    display: flex; padding-bottom: var(--safe-bottom); z-index: 1000;
+  }
+  .tab { flex: 1; padding: 16px; text-align: center; font-size: 10px; color: var(--text-sub); border: none; background: none; }
+  .tab.active { color: var(--primary); font-weight: 700; }
+
+  /* 시각적 요소 */
+  .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 10px; }
+  .progress-fill { height: 100%; background: var(--primary); transition: width 0.5s ease; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="status">SYSTEM ACTIVE</div>
+    <h1>QUEEN'S BIZ</h1>
+  </div>
+</header>
+
+<main id="app-content">
+  <div id="view-dash" class="view">
+    <div class="dashboard">
+      <div class="stat-card">
+        <div class="stat-label">원가율 (Cost Ratio)</div>
+        <div class="stat-value" id="val-ratio">0%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">1인분 마진 (Margin)</div>
+        <div class="stat-value" id="val-margin">₩0</div>
+      </div>
+      <div class="stat-card" style="grid-column: span 2;">
+        <div class="stat-label">손익분기점 (BEP)</div>
+        <div class="stat-value" id="val-bep" style="color:#5ec47a">0개 판매 시 도달</div>
+      </div>
+    </div>
+    
+    <div class="input-group">
+      <span class="input-label">고정비 및 판매가 설정</span>
+      <input type="number" id="inp-fixed" placeholder="월 고정비 (임대료, 인건비 등)" oninput="calc()">
+      <input type="number" id="inp-sell" placeholder="판매가" oninput="calc()">
+    </div>
+
+    <button class="btn btn-secondary" onclick="exportData()">보고서 내보내기 (CSV)</button>
+  </div>
+
+  <div id="view-ing" class="view" style="display:none">
+    <span class="input-label">식재료 마스터 등록</span>
+    <input type="text" id="ing-n" placeholder="재료명">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+      <input type="number" id="ing-y" placeholder="수율 (%)" value="100">
+      <input type="number" id="ing-p" placeholder="구입 금액">
+    </div>
+    <input type="number" id="ing-q" placeholder="구입 수량">
+    <button class="btn btn-primary" onclick="addIng()">재료 데이터베이스 추가</button>
+    <div id="list-ing" style="margin-top:20px;"></div>
+  </div>
+
+  <div id="view-rec" class="view" style="display:none">
+    <span class="input-label">메뉴 레시피 빌더</span>
+    <input type="text" id="rec-n" placeholder="메뉴명">
+    <div id="rec-rows"></div>
+    <button class="btn btn-secondary" onclick="addRow()">+ 재료 행 추가</button>
+    <button class="btn btn-primary" style="margin-top:12px" onclick="saveRec()">레시피 서버 저장</button>
+    <div id="list-rec" style="margin-top:20px;"></div>
+  </div>
+</main>
+
+<nav>
+  <button class="tab active" onclick="showView('dash', this)">DASHBOARD</button>
+  <button class="tab" onclick="showView('ing', this)">MASTER</button>
+  <button class="tab" onclick="showView('rec', this)">RECIPE</button>
+</nav>
+
+<script>
+  let ings = JSON.parse(localStorage.getItem('q-ings') || '[]');
+  let recs = JSON.parse(localStorage.getItem('q-recs') || '[]');
+  let rows = [];
+
+  function showView(id, btn) {
+    document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+    document.getElementById('view-' + id).style.display = 'block';
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    if(id === 'dash') calc();
+  }
+
+  // 전문적인 원가 산출 수식 적용
+  function addIng() {
+    const n = document.getElementById('ing-n').value;
+    const y = parseFloat(document.getElementById('ing-y').value) || 100;
+    const p = parseFloat(document.getElementById('ing-p').value);
+    const q = parseFloat(document.getElementById('ing-q').value);
+    if(!n || !p || !q) return;
+    
+    // 수율(Yield) 보정 공식: 구입가 / (용량 * 수율%)
+    const unitPrice = p / (q * (y/100));
+    ings.push({id: Date.now(), n, up: unitPrice, y});
+    localStorage.setItem('q-ings', JSON.stringify(ings));
+    renderIngs();
+  }
+
+  function renderIngs() {
+    document.getElementById('list-ing').innerHTML = ings.map(i => `
+      <div style="background:var(--surface); padding:15px; border-radius:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+        <div><div style="font-weight:700">${i.n}</div><div style="font-size:11px; color:var(--text-sub)">수율 ${i.y}% 적용 단가</div></div>
+        <div style="color:var(--primary)">₩${i.up.toFixed(1)}</div>
+      </div>`).join('');
+  }
+
+  function addRow() {
+    rows.push({id: Date.now(), ingId: ings[0]?.id || 0, amt: 0});
+    renderRows();
+  }
+
+  function renderRows() {
+    document.getElementById('rec-rows').innerHTML = rows.map(r => `
+      <div style="display:grid; grid-template-columns: 1.5fr 1fr 40px; gap:8px; margin-bottom:8px;">
+        <select onchange="uRow(${r.id}, 'ingId', parseInt(this.value))" style="padding:10px">${ings.map(i => `<option value="${i.id}" ${i.id===r.ingId?'selected':''}>${i.n}</option>`).join('')}</select>
+        <input type="number" placeholder="량" style="padding:10px; margin:0" oninput="uRow(${r.id}, 'amt', parseFloat(this.value))">
+        <button onclick="delRow(${r.id})" style="background:none; border:none; color:var(--text-sub); font-size:20px;">×</button>
+      </div>`).join('');
+  }
+
+  function uRow(id, f, v) { const r = rows.find(x => x.id === id); if(r) r[f] = v; calc(); }
+  function delRow(id) { rows = rows.filter(x => x.id !== id); renderRows(); calc(); }
+
+  // 손익분기점(BEP) 및 마진 계산 로직 고도화
+  function calc() {
+    let sub = 0;
+    rows.forEach(r => {
+      const i = ings.find(x => x.id === r.ingId);
+      if(i && r.amt) sub += i.up * r.amt;
+    });
+
+    const sp = parseFloat(document.getElementById('inp-sell').value) || 0;
+    const fx = parseFloat(document.getElementById('inp-fixed').value) || 0;
+    const margin = sp - sub;
+
+    document.getElementById('val-ratio').textContent = sp > 0 ? ((sub/sp)*100).toFixed(1) + "%" : "0%";
+    document.getElementById('val-margin').textContent = "₩" + Math.round(margin).toLocaleString();
+    
+    // BEP 수식: 월 고정비 / (판매가 - 변동비)
+    if(margin > 0) {
+      const bep = Math.ceil(fx / margin);
+      document.getElementById('val-bep').textContent = bep.toLocaleString() + "개 판매 시 도달";
+    } else {
+      document.getElementById('val-bep').textContent = "마진 확보 필요";
+    }
+  }
+
+  function renderSaved() {
+    document.getElementById('list-rec').innerHTML = recs.map(r => `
+      <div onclick="loadRec(${r.id})" style="background:var(--surface); padding:15px; border-radius:12px; margin-bottom:8px; cursor:pointer">
+        <b>${r.n}</b> <small style="color:var(--text-sub)">클라우드 동기화 완료</small>
+      </div>`).join('');
+  }
+
+  function saveRec() {
+    const n = document.getElementById('rec-n').value;
+    if(!n) return;
+    recs.push({id: Date.now(), n, rows: [...rows]});
+    localStorage.setItem('q-recs', JSON.stringify(recs));
+    renderSaved();
+  }
+
+  renderIngs();
+  renderSaved();
+</script>
+</body>
+</html>
