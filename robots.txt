@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://kbj604-dot.github.io/foodcost-v6/sitemap.xml
